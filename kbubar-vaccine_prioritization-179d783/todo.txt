@@ -1,0 +1,18 @@
+Setup Github repo -> Maik
+Task 1:
+    - Read Germany demographics     -> Maik
+    - Run Simulation with Germany and compare to actual pandemic
+
+Task 2:
+    - Find current vaccination levels -> Eun
+    - implement as initial conditions
+    - run simulations and find best strategy from now on
+
+Task 3:
+    - find R values from January to April
+    - include in Simulation
+    - run simulations and compare to results in the paper
+
+optional:
+
+    - task 1 with country with young age structure
