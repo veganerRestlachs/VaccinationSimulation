@@ -6,12 +6,12 @@ library("tidyverse")
 library("RColorBrewer")
 library(gplots)
 
-setwd("~/Vaccine Strategy/Vaccine_Allocation_Project")
+setwd(".")
 age_df <- read_excel("WPP2019_POP_F07_1_POPULATION_BY_AGE_BOTH_SEXES.xlsx", "ESTIMATES")
 
 
 # setwd to file with Prem contact matrices
-setwd("~/Vaccine Strategy/Vaccine_Allocation_Project/Prem_contact_matrices")
+setwd("./Prem_contact_matrices")
 
 # FUNCTION ---- 
 # convert C to 10 year age-groups
@@ -123,7 +123,7 @@ add_80bin <- function(C_bytens){
 # Poland: POL
 
 countrycode <- "USA"
-country <- "United States"
+country <- "United States of America"
 
 
 # age demographics by 5 year age bin (to weight C when aggregating)
@@ -184,5 +184,5 @@ heatmap(C_bytens, NA, NA, scale = "none",
         cexRow = 1.5, 
         cexCol = 1.5)
 
+setwd("..")
 saveRDS(C_bytens, paste0("C_", countrycode,"_bytens_", setting, ".RData"))
-

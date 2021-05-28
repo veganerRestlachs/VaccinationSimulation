@@ -18,7 +18,7 @@ df <- read_excel("WPP2019_POP_F07_1_POPULATION_BY_AGE_BOTH_SEXES.xlsx", "ESTIMAT
 # South Africa: ZAF
 # Poland: POL
 
-countrycode <- "GER"
+countrycode <- "DEU"
 country <- "Germany"
 popdata <- df[df$Country == country,]
 popdata <- popdata[popdata$Year == 2020,]
@@ -37,3 +37,4 @@ pop_demo <- pop_demo/total_pop
 pop_demo[10] <- total_pop*1000
 
 saveRDS(pop_demo, paste0("age_demographics_", countrycode, ".RData"))
+
