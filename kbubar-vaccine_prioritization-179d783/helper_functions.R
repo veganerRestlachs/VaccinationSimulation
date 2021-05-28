@@ -841,13 +841,13 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
     theme(legend.position = "none") 
   
   if (compartment == "I") {
-    ymax <- 4
+    ymax <- 1
     p <- p + ylab("\nInfected (%)")
   } else if (compartment == "R") {
     ymax <- 60
     p <- p + ylab("Cumulative\nincidence (%)")
   } else if (compartment == "D") {
-    ymax <- 0.6
+    ymax <- 0.1
     p <- p + ylab("Cumulative\nmortality (%)") 
   }
   
