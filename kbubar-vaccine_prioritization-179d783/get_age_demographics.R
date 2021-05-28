@@ -1,5 +1,5 @@
 # Combine 5 year age-group demographics from UN into 10 years age-groups 
-setwd("~/Vaccine Strategy/Vaccine_Allocation_Project")
+#setwd("~/Vaccine Strategy/Vaccine_Allocation_Project")
 
 library(grid)
 library(readxl)
@@ -18,8 +18,8 @@ df <- read_excel("WPP2019_POP_F07_1_POPULATION_BY_AGE_BOTH_SEXES.xlsx", "ESTIMAT
 # South Africa: ZAF
 # Poland: POL
 
-countrycode <- "POL"
-country <- "Poland"
+countrycode <- "GER"
+country <- "Germany"
 popdata <- df[df$Country == country,]
 popdata <- popdata[popdata$Year == 2020,]
 
