@@ -1,11 +1,11 @@
 Setup Github repo -> Maik
 Task 1:
-    - Read Germany demographics     -> Maik
-    - Run Simulation with Germany and compare to actual pandemic
+    - Read Germany demographics     
+    - Run Simulation with Germany and compare to actual pandemic        
 
 Task 2:
-    - Find current vaccination levels -> Eun
-    - implement as initial conditions
+    - Find current vaccination levels agedependent!
+    - implement as initial conditions       -> turn into list
     - run simulations and find best strategy from now on
 
 Task 3:
