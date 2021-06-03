@@ -3,20 +3,46 @@ source("helper_functions.R")
 country <- "DEU"
 source("setup.R")
 
+#_____________________________________________________________________
+# Calculate timedependent C
+#_____________________________________________________________________
+#read from csv file
+RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = ";")[,c("Datum","Schätzer_Reproduktionszahl_R")]
+
+startDate =  as.POSIXct(as.Date("1.2.2021", "%d.%m.%Y"))
+#change column names to english
+names(RValues)<-c("Date","R")
+# Format date type to posixct, because everything else didn't work
+RValues$Date<-as.POSIXct(as.Date(RValues$Date,"%d.%m.%Y"))
+# kick out NAs
+RValues<-na.omit(RValues)
+# kick out Dates after Startdate
+RValues<-RValues[RValues$Date > startDate,]
+# reindex
+rownames(RValues) <- 0:(nrow(RValues)-1)
+
+#create Dynamic C
+dynamicC <-vector(mode = "list")
+for (i in 1:nrow(RValues)){
+  tmp_scale = scale_u_for_R0(u_var,C,RValues[i,"R"])
+  dynamicC[[i]] <-C/tmp_scale
+}
+
+
 # _____________________________________________________________________
 # FIGURE 1: Dynamics curves ####
 # _____________________________________________________________________
-this_C <- C/scale_15
+
 ptm <- proc.time()  
 
 
 for (i in seq(0, 50, by = 1)){
   j <- i/100
-  list_all[[paste0(i)]] <- run_sim(this_C, j, "all", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_kids[[paste0(i)]] <- run_sim(this_C, j, "kids", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_adults[[paste0(i)]] <- run_sim(this_C, j, "adults", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_elderly[[paste0(i)]] <- run_sim(this_C, j, "elderly", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_twentyplus[[paste0(i)]] <- run_sim(this_C, j, "twentyplus", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_all[[paste0(i)]] <- run_simDynamic(dynamicC, j, "all", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_kids[[paste0(i)]] <- run_simDynamic(dynamicC, j, "kids", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_adults[[paste0(i)]] <- run_simDynamic(dynamicC, j, "adults", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_elderly[[paste0(i)]] <- run_simDynamic(dynamicC, j, "elderly", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_twentyplus[[paste0(i)]] <- run_simDynamic(dynamicC, j, "twentyplus", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
 } 
 
 

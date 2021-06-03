@@ -265,6 +265,82 @@ calculate_derivatives_NTB = function(t, x, parameters){
   list(out)
 }
 
+calculate_derivativesDynamic = function(t, x, parameters){
+  # x is a vector of length (# model compartment types)*(# age groups)
+  # S, E, I, R etc. are vectors of length num_groups
+  num_compartment <- 13
+  num_groups <- (length(x)-1)/num_compartment
+  S    <- as.matrix(x[1:num_groups])
+  Sv   <- as.matrix(x[(1*num_groups+1):(2*num_groups)])
+  Sx   <- as.matrix(x[(2*num_groups+1):(3*num_groups)])
+  E    <- as.matrix(x[(3*num_groups+1):(4*num_groups)])
+  Ev   <- as.matrix(x[(4*num_groups+1):(5*num_groups)])
+  Ex   <- as.matrix(x[(5*num_groups+1):(6*num_groups)])
+  I    <- as.matrix(x[(6*num_groups+1):(7*num_groups)])
+  Iv   <- as.matrix(x[(7*num_groups+1):(8*num_groups)])
+  Ix   <- as.matrix(x[(8*num_groups+1):(9*num_groups)])
+  R    <- as.matrix(x[(9*num_groups+1):(10*num_groups)])
+  Rv   <- as.matrix(x[(10*num_groups+1):(11*num_groups)])
+  Rx   <- as.matrix(x[(11*num_groups+1):(12*num_groups)])
+  D    <- as.matrix(x[(12*num_groups+1):(13*num_groups)])
+  vax_supply <- x[13*num_groups+1]
+  
+  S[S < .Machine$double.eps] <- 0
+  Sv[Sv < .Machine$double.eps] <- 0
+  Sx[Sx < .Machine$double.eps] <- 0
+  E[E < .Machine$double.eps] <- 0
+  Ev[Ev < .Machine$double.eps] <- 0
+  Ex[Ex < .Machine$double.eps] <- 0
+  I[I < .Machine$double.eps] <- 0
+  Iv[Iv < .Machine$double.eps] <- 0
+  Ix[Ix < .Machine$double.eps] <- 0
+  R[R < .Machine$double.eps] <- 0
+  Rv[Rv < .Machine$double.eps] <- 0
+  Rx[Rx < .Machine$double.eps] <- 0
+  D[D < .Machine$double.eps] <- 0
+  
+  u <- parameters$u
+  #This is the only change to calcuulateDerivatives, t starts at 0, so we add one to get our R indices .... Why does one use 1-based indices?
+  C <- parameters$C[[t+1]]
+  d_E <- parameters$d_E
+  d_I <- parameters$d_I
+  v_e <- parameters$v_e
+  v_e_type <- parameters$v_e_type
+  
+  lambda <- C%*%((I+Iv+Ix)/(N_i-D))*u
+  
+  if (v_e_type == "leaky") {
+    dSv <- -(Sv*(1-v_e)*lambda)
+    dEv <- (Sv*(1-v_e)*lambda) - d_E*Ev 
+  } else {
+    # all-or-nothing
+    dSv <- rep(0, num_groups)
+    dEv <- -d_E*as.matrix(Ev)
+  }
+  
+  dS  <- -(S*lambda)
+  dSx <- -(Sx*lambda)
+  
+  dE  <- S*lambda - d_E*E
+  dEx <- Sx*lambda - d_E*Ex
+  
+  dI  <- E*d_E - I*d_I
+  dIv <- Ev*d_E - Iv*d_I
+  dIx <- Ex*d_E - Ix*d_I
+  
+  dR  <- I*d_I*(1-IFR)
+  dRv <- Iv*d_I*(1-IFR)
+  dRx <- Ix*d_I*(1-IFR)
+  
+  dD  <- I*d_I*IFR + Iv*d_I*IFR + Ix*d_I*IFR
+  
+  dvax_supply <- 0
+  
+  out <- c(dS,dSv,dSx,dE,dEv,dEx,dI,dIv,dIx,dR,dRv,dRx,dD,dvax_supply)
+  list(out)
+}
+
+
 get_v_e = function(p, y0, hinge_age){
   # INPUT: p is the final v_e % (as a decimal) 
   #       i.e. p = 1 -> perfect vaccine at all ages
@@ -847,7 +923,7 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
     ymax <- 60
     p <- p + ylab("Cumulative\nincidence (%)")
   } else if (compartment == "D") {
-    ymax <- 0.1
+    ymax <- 0.2
     p <- p + ylab("Cumulative\nmortality (%)") 
   }
   
