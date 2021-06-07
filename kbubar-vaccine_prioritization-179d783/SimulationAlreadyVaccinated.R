@@ -12,11 +12,11 @@ ptm <- proc.time()
 
 for (i in seq(0, 50, by = 1)){
   j <- i/100
-  list_all[[paste0(i)]] <- run_sim(this_C, j, "all", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_kids[[paste0(i)]] <- run_sim(this_C, j, "kids", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_adults[[paste0(i)]] <- run_sim(this_C, j, "adults", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_elderly[[paste0(i)]] <- run_sim(this_C, j, "elderly", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
-  list_twentyplus[[paste0(i)]] <- run_sim(this_C, j, "twentyplus", num_perday, v_e_type, this_v_e, vaccinated = 0.2)
+  list_all[[paste0(i)]] <- run_sim(this_C, j, "all", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
+  list_kids[[paste0(i)]] <- run_sim(this_C, j, "kids", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
+  list_adults[[paste0(i)]] <- run_sim(this_C, j, "adults", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
+  list_elderly[[paste0(i)]] <- run_sim(this_C, j, "elderly", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
+  list_twentyplus[[paste0(i)]] <- run_sim(this_C, j, "twentyplus", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
 } 
 
 

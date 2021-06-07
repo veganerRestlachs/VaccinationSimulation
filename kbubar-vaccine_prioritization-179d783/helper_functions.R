@@ -910,20 +910,20 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
               linetype = "dashed") +
     geom_line(aes(color = strat), size = 0.5) +
     xlab("Time (days)") +
-    scale_x_continuous(expand = c(0,0), limit = c(0, 250)) +#, breaks = c(0, 100, 200, 300)) +
+    scale_x_continuous(expand = c(0,0), limit = c(0, 150)) +#, breaks = c(0, 100, 200, 300)) +
     scale_color_brewer(palette = "Dark2", name = "Allocation Strategy",
                        labels =  c("Adults 20-49", "All Ages", "Adults 60+", 
                                    "Under 20", "Adults 20+")) +
     theme(legend.position = "none") 
   
   if (compartment == "I") {
-    ymax <- 1
+    ymax <- 0.4
     p <- p + ylab("\nInfected (%)")
   } else if (compartment == "R") {
     ymax <- 60
     p <- p + ylab("Cumulative\nincidence (%)")
   } else if (compartment == "D") {
-    ymax <- 0.2
+    ymax <- 0.1
     p <- p + ylab("Cumulative\nmortality (%)") 
   }
   

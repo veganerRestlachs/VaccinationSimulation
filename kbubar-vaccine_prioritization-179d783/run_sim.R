@@ -398,7 +398,7 @@ run_simDynamic = function(C, percent_vax, strategy, num_perday, v_e_type, v_e = 
   
   ## This is changed from original Call, such that t does not go out of range of C
   t <- seq(from=0, to=(length(C)-1), by=1) 
-  # Take the min, because event_times that are not in t are added and then cause errors
+  # Take the min, because event_times that are not in t are added and then cause errors 
   event_times <- seq(from=0, to=min(floor(vax_supply/(num_perday*pop_total)), (length(C)-1)), by=1)
   df <- as.data.frame(deSolve::lsoda(y=compartments_initial, times=t, func=calculate_derivativesDynamic, parms=parameters, events=list(func=move_vaccinated_event, time=event_times)))
   
