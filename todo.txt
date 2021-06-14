@@ -1,18 +1,21 @@
 Setup Github repo -> Maik
-Task 1:
+Task 1:  Are the results for USA transferable to Germany?
     - Read Germany demographics     
-    - Run Simulation with Germany and compare to actual pandemic        
+    - Run Simulation with Germany and compare to USA predictions       
 
-Task 2:
-    - Find current vaccination levels agedependent!
-    - implement as initial conditions       -> turn into list
+Task 2: Application of Model to current situation
+    - Find current vaccination levels agedependent!  -> no data -> estimate?
+    - implement as initial conditions       done
     - run simulations and find best strategy from now on
 
-Task 3:
+Task 3: Is the model capable of predicting Pandemic Evolution?
     - find R values from January to April
     - include in Simulation
     - run simulations and compare to results in the paper
-
+    - How long do infected people stay infected
+    - include dynamic numPerDay
+    
+    
 optional:
 
     - task 1 with country with young age structure

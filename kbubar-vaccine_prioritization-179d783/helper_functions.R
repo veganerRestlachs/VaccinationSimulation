@@ -340,6 +340,127 @@ calculate_derivativesDynamic = function(t, x, parameters){
   list(out)
 }
 
+move_vaccinated_eventDynamic <- function(t, x, parms){
+  v_e <- parms$v_e
+  v_e_type <- parms$v_e_type
+  num_perday <- parms$num_perday[[t+1]]
+  vax_proportion <- parms$vax_proportion
+  groups <- parms$groups
+  sp <- parms$sp
+  se <- parms$se
+  pop_total <- parms$pop_total
+  
+  # move those who are vaccinated in a given day
+  num_compartment <- 13
+  num_groups <- (length(x)-1)/num_compartment
+  S    <- as.matrix(x[1:num_groups])
+  Sv   <- as.matrix(x[(1*num_groups+1):(2*num_groups)])
+  Sx   <- as.matrix(x[(2*num_groups+1):(3*num_groups)])
+  E    <- as.matrix(x[(3*num_groups+1):(4*num_groups)])
+  Ev   <- as.matrix(x[(4*num_groups+1):(5*num_groups)])
+  Ex   <- as.matrix(x[(5*num_groups+1):(6*num_groups)])
+  I    <- as.matrix(x[(6*num_groups+1):(7*num_groups)])
+  Iv   <- as.matrix(x[(7*num_groups+1):(8*num_groups)])
+  Ix   <- as.matrix(x[(8*num_groups+1):(9*num_groups)])
+  R    <- as.matrix(x[(9*num_groups+1):(10*num_groups)])
+  Rv   <- as.matrix(x[(10*num_groups+1):(11*num_groups)])
+  Rx   <- as.matrix(x[(11*num_groups+1):(12*num_groups)])
+  D    <- as.matrix(x[(12*num_groups+1):(13*num_groups)])
+  vax_supply <- x[13*num_groups+1]
+  
+  if (vax_supply >= num_perday*pop_total){
+    nvax <- num_perday*pop_total
+    vax_supply <- vax_supply - num_perday*pop_total
+  } else {
+    nvax <- vax_supply
+    vax_supply <- 0
+  }
+  
+  vax_distribution <- nvax*vax_proportion
+  vax_eligible <- (S+E)*sp + R*(1-se)
+  if (any(vax_distribution > vax_eligible)){
+    # make sure everyone in the specificed age groups are vaccinated
+    if (!all(vax_distribution[groups] > vax_eligible[groups])){
+      temp <- vax_distribution
+      temp[vax_distribution > vax_eligible] <- vax_eligible[vax_distribution > vax_eligible]
+      leftover_vax <- sum(vax_distribution - temp)
+      
+      full_groups <- 1:9
+      full_groups <- full_groups[vax_distribution > vax_eligible]
+      leftover_groups <- groups[!groups %in% full_groups]
+      people_to_vax <- sum(vax_eligible[leftover_groups])
+      vax_proportion <- rep(0, num_groups)
+      vax_proportion[leftover_groups] <- vax_eligible[leftover_groups]/people_to_vax
+      
+      vax_leftover_dist <- leftover_vax*vax_proportion
+      vax_distribution <- temp + vax_leftover_dist
+    }
+    #distribute vaccines to all other age groups if there's doses left over after strategy specified
+    #age groups
+    if (any(vax_distribution > vax_eligible)){
+      temp <- vax_distribution
+      temp[vax_distribution > vax_eligible] <- vax_eligible[vax_distribution > vax_eligible]
+      leftover_vax <- sum(vax_distribution - temp)
+      
+      leftover_groups <- 1:9
+      leftover_groups <- leftover_groups[!leftover_groups %in% groups]
+      people_to_vax <- sum(vax_eligible[leftover_groups])
+      vax_proportion <- rep(0, num_groups)
+      vax_proportion[leftover_groups] <- vax_eligible[leftover_groups]/people_to_vax
+      
+      vax_leftover_dist <- leftover_vax*vax_proportion
+      vax_distribution <- temp + vax_leftover_dist
+    }
+    # don't go over the number eligible
+    if (any(vax_distribution > vax_eligible)){
+      vax_distribution[vax_distribution > vax_eligible] = vax_eligible
+    }
+  }
+  
+  alpha <- vax_distribution/vax_eligible
+  alpha[alpha == Inf] <- 0 # no people in S,E,R
+  alpha[is.nan(alpha)] <- 0 # no vax left and no people in S,E,R
+  if(any(alpha > 1)){print("WARNING: alpha > 1 in move_vaccinated")
+    alpha[alpha>1] <- 0} # more vaccines avaliable than eligible people
+  
+  if (v_e_type == "leaky") {
+    dS  <- -(S*alpha*sp) - (S*alpha*(1-sp))
+    dSv <- (S*alpha*sp)
+    dSx <- (S*alpha*(1-sp))
+    
+    dE  <- -(E*alpha*sp) - (E*alpha*(1-sp))
+    dEv <- (E*alpha*sp)
+    dEx <- (E*alpha*(1-sp)) 
+  } else {
+    # all-or-nothing
+    dS  <- -(S*alpha*sp) - (S*alpha*(1-sp))
+    dSv <- (S*alpha*sp*v_e)
+    dSx <- (S*alpha*sp*(1-v_e)) + (S*alpha*(1-sp)) 
+    
+    dE  <- - (E*alpha*sp) - (E*alpha*(1-sp))
+    dEv <- (E*alpha*sp*v_e)
+    dEx <- (E*alpha*sp*(1-v_e)) + (E*alpha*(1-sp))
+  }
+  
+  dR <- - (R*alpha*(1-se)) - (R*alpha*se)
+  dRv <- (R*alpha*(1-se))
+  dRx <- (R*alpha*se)
+  
+  # update compartments
+  S    <- S + dS
+  Sv   <- Sv + dSv
+  Sx   <- Sx + dSx
+  E    <- E + dE
+  Ev   <- Ev + dEv
+  Ex   <- Ex + dEx
+  R    <- R + dR
+  Rv   <- Rv + dRv
+  Rx   <- Rx + dRx
+  
+  # output updated compartments
+  out <- c(S,Sv,Sx,E,Ev,Ex,I,Iv,Ix,R,Rv,Rx,D,vax_supply)
+}
+
 
 get_v_e = function(p, y0, hinge_age){
   # INPUT: p is the final v_e % (as a decimal) 
@@ -900,7 +1021,7 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
   df_kids <- gather_compartments_overtime(df_kids, compartment, "kids")
   df_twentyplus <- gather_compartments_overtime(df_twentyplus, compartment, "twentyplus")
   df_elderly <- gather_compartments_overtime(df_elderly, compartment, "elderly")
-  
+  xmaxDyn = as.numeric(dim(df_baseline)[1])-1
   df <- rbind(df_adults, df_all, df_elderly, df_kids, df_twentyplus)
   
   p <- ggplot(df, aes(x = time, y = percent)) +
@@ -910,14 +1031,14 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
               linetype = "dashed") +
     geom_line(aes(color = strat), size = 0.5) +
     xlab("Time (days)") +
-    scale_x_continuous(expand = c(0,0), limit = c(0, 150)) +#, breaks = c(0, 100, 200, 300)) +
+    scale_x_continuous(expand = c(0,0), limit = c(0, xmaxDyn)) +#, breaks = c(0, 100, 200, 300)) +
     scale_color_brewer(palette = "Dark2", name = "Allocation Strategy",
                        labels =  c("Adults 20-49", "All Ages", "Adults 60+", 
                                    "Under 20", "Adults 20+")) +
     theme(legend.position = "none") 
   
   if (compartment == "I") {
-    ymax <- 0.4
+    ymax <- 0.6
     p <- p + ylab("\nInfected (%)")
   } else if (compartment == "R") {
     ymax <- 60

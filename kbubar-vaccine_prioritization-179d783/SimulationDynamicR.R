@@ -6,21 +6,59 @@ source("setup.R")
 #_____________________________________________________________________
 # Calculate timedependent C
 #_____________________________________________________________________
-#read from csv file
-RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = ";")[,c("Datum","Schätzer_Reproduktionszahl_R")]
 
 startDate =  as.POSIXct(as.Date("1.2.2021", "%d.%m.%Y"))
-#change column names to english
-names(RValues)<-c("Date","R")
-# Format date type to posixct, because everything else didn't work
-RValues$Date<-as.POSIXct(as.Date(RValues$Date,"%d.%m.%Y"))
-# kick out NAs
-RValues<-na.omit(RValues)
-# kick out Dates after Startdate
-RValues<-RValues[RValues$Date > startDate,]
-# reindex
-rownames(RValues) <- 0:(nrow(RValues)-1)
+getRValues<-function(startDate){
+  #read from csv file
+  RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = ";")[,c("Datum","Schätzer_Reproduktionszahl_R")]
+  
+  #change column names to english
+  names(RValues)<-c("Date","R")
+  # Format date type to posixct, because everything else didn't work
+  RValues$Date<-as.POSIXct(as.Date(RValues$Date,"%d.%m.%Y"))
+  # kick out NAs
+  RValues<-na.omit(RValues)
+  # kick out Dates after Startdate
+  RValues<-RValues[RValues$Date > startDate,]
+  # reindex
+  rownames(RValues) <- 0:(nrow(RValues)-1)
+  RValues
+}
+getVaccinationValues <-function(firstVaccination, startDate){
+  #____________________________________________________________________
+  # Calculate timedependent num_per_day
+  #____________________________________________________________________
+  #read from csv file
+  if (firstVaccination){
+  vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.csv", sep= "\t")[,c("date","dosen_erst_differenz_zum_vortag", "impf_quote_erst")]
+  }else{
+  vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.csv", sep= "\t")[,c("date","dosen_zweit_differenz_zum_vortag", "impf_quote_voll")]
+  }
+  #rename columns
+  names(vaccinationValues)<-c("Date","Shots","fraction")
+  vaccinationValues$fraction <- vaccinationValues$fraction/1000.
+  # Format date type to posixct, because everything else didn't work
+  vaccinationValues$Date<-as.POSIXct(as.Date(vaccinationValues$Date,"%Y-%m-%d"))
+  # kick out NAs
+  vaccinationValues<-na.omit(vaccinationValues)
+  # kick out Dates after Startdate
+  vaccinationValues<-vaccinationValues[vaccinationValues$Date > startDate,]
+  # reindex
+  rownames(vaccinationValues) <- 0:(nrow(vaccinationValues)-1)
+  vaccinationValues
+}
 
+RValues <-getRValues(startDate)
+vaccinationValues = getVaccinationValues(TRUE,startDate)
+## Merge Data to last common date
+endDate = min(RValues[nrow(RValues),"Date"], vaccinationValues[nrow(vaccinationValues),"Date"])
+RValues<-RValues[RValues$Date <= endDate,]
+vaccinationValues<-vaccinationValues[vaccinationValues$Date <=endDate,]
+
+assertthat::are_equal(nrow(RValues),nrow(vaccinationValues))
+
+# Scale R such that R_t becomes R_0
+RValues$R<-RValues$R/(1.-vaccinationValues$fraction)
 #create Dynamic C
 dynamicC <-vector(mode = "list")
 for (i in 1:nrow(RValues)){
@@ -28,6 +66,11 @@ for (i in 1:nrow(RValues)){
   dynamicC[[i]] <-C/tmp_scale
 }
 
+#create Dynamic numPerDay
+dynamicNPD <-vector(mode = "list")
+for (i in 1:nrow(vaccinationValues)){
+  dynamicNPD[[i]] <-vaccinationValues[i,"Shots"]/pop_total
+}
 
 # _____________________________________________________________________
 # FIGURE 1: Dynamics curves ####
@@ -38,18 +81,18 @@ ptm <- proc.time()
 
 for (i in seq(0, 50, by = 1)){
   j <- i/100
-  list_all[[paste0(i)]] <- run_simDynamic(dynamicC, j, "all", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
-  list_kids[[paste0(i)]] <- run_simDynamic(dynamicC, j, "kids", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
-  list_adults[[paste0(i)]] <- run_simDynamic(dynamicC, j, "adults", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
-  list_elderly[[paste0(i)]] <- run_simDynamic(dynamicC, j, "elderly", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
-  list_twentyplus[[paste0(i)]] <- run_simDynamic(dynamicC, j, "twentyplus", num_perday, v_e_type, this_v_e, vaccinated = 0.0)
+  list_all[[paste0(i)]] <- run_simDynamic(dynamicC, j, "all", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
+  list_kids[[paste0(i)]] <- run_simDynamic(dynamicC, j, "kids", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
+  list_adults[[paste0(i)]] <- run_simDynamic(dynamicC, j, "adults", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
+  list_elderly[[paste0(i)]] <- run_simDynamic(dynamicC, j, "elderly", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
+  list_twentyplus[[paste0(i)]] <- run_simDynamic(dynamicC, j, "twentyplus", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
 } 
 
 
 proc.time() - ptm
 
 p_mort <- plot_over_vax_avail("deaths")
-p_infect <- plot_over_vax_avail("cases")
+  p_infect <- plot_over_vax_avail("cases")
 
 t_one <- 11
 infect_10 <- plot_strat_overtime("I", list_all[[1]], list_all[[t_one]], list_adults[[t_one]], 
