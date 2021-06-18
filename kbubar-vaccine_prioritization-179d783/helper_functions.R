@@ -4,7 +4,7 @@ library(data.table)
 ##### ADDED ##############
 getRValues<-function(startDate){
   #read from csv file
-  RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = "\t")[,c("Datum","Schätzer_Neuerkrankungen_ma4","Schätzer_7_Tage_R_Wert")] #Schätzer_Reproduktionszahl_R
+  RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = "\t")[,c("Datum","Schätzer_Neuerkrankungen_ma4","Schätzer_Reproduktionszahl_R")] #"Schätzer_7_Tage_R_Wert"
   
   #change column names to english
   names(RValues)<-c("Date","Infections","R")
@@ -1131,7 +1131,7 @@ plot_strat_overtimeDyn = function(compartment, df_baseline, df_all, df_adults, d
                        labels =  lab)
   
   if (compartment == "I") {
-    ymax <- max(plotDF$percent)*1.5
+    ymax <- max(max(plotDF$percent),max(df$percent))*1.5
     p <- p + ylab("\nInfected (%)")
   } else if (compartment == "R") {
     ymax <- 60
