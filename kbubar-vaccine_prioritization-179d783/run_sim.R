@@ -275,7 +275,7 @@ run_sim_NTB = function(C, percent_vax, strategy, num_perday, ve_S, ve_I, ve_P,
 
 
 run_simDynamic = function(C, percent_vax, strategy, num_perday, v_e_type, v_e = v_e_constant,
-                   u = u_var, sero = sero_none, vaccinated = 0., sp = 1, se = 0, refuse_vax = 0.3, syn_sero_compartments = NA){
+                   u = u_var, sero = sero_none,fractionInfected = 0.005, vaccinated = 0., sp = 1, se = 0, refuse_vax = 0.3, syn_sero_compartments = NA){
   # IC: 0.25% of each age group exposted and infected if numperday != 1
   #     Sero+ start in recovered
   #     refuse_vax % proportion of each compartment start in *x (Sx, Ex, Ix and Rx)
@@ -290,10 +290,10 @@ run_simDynamic = function(C, percent_vax, strategy, num_perday, v_e_type, v_e = 
   Rx_0 <- (N_i * sero)*refuse_vax
   Rv_0 <- (N_i * vaccinated)
 
-  I_0 <- (N_i*0.0025)*(1-refuse_vax) # 0.5% of each age group starts in exposed and infected
-  Ix_0 <- (N_i*0.0025)*refuse_vax
-  E_0 <- (N_i*0.0025)*(1-refuse_vax)
-  Ex_0 <- (N_i*0.0025)*refuse_vax
+  I_0 <- (N_i*fractionInfected)*(1-refuse_vax) # 0.5% of each age group starts in exposed and infected
+  Ix_0 <- (N_i*fractionInfected)*refuse_vax
+  E_0 <- (N_i*fractionInfected)*(1-refuse_vax)
+  Ex_0 <- (N_i*fractionInfected)*refuse_vax
   
   
   S_0 <- (N_i - I_0 - E_0 - R_0 - Ix_0 - Ex_0 - Rx_0 - Rv_0)*(1-refuse_vax)

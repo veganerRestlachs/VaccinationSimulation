@@ -6,13 +6,13 @@
 # _____________________________________________________________________
 source("run_sim.R")
 source("helper_functions.R")
-country <- "USA"
+country <- "DEU"
 source("setup.R")
 
 # _____________________________________________________________________
 # FIGURE 1: Dynamics curves ####
 # _____________________________________________________________________
-this_C <- C/scale_15
+this_C <- C/scale_115
 ptm <- proc.time()  
 for (i in seq(0, 50, by = 1)){
   j <- i/100

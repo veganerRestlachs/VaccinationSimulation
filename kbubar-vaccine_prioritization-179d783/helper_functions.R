@@ -1,6 +1,48 @@
 library(grid)
 library(dplyr)
 library(data.table)
+##### ADDED ##############
+getRValues<-function(startDate){
+  #read from csv file
+  RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = "\t")[,c("Datum","Schätzer_Neuerkrankungen_ma4","Schätzer_7_Tage_R_Wert")] #Schätzer_Reproduktionszahl_R
+  
+  #change column names to english
+  names(RValues)<-c("Date","Infections","R")
+  # Format date type to posixct, because everything else didn't work
+  RValues$Date<-as.POSIXct(as.Date(RValues$Date,"%d.%m.%Y"))
+  # kick out NAs
+  RValues<-na.omit(RValues)
+  RValues["Infectious"]<-roll_sum(RValues$Infections,5)
+  RValues$Infectious = RValues$Infectious/pop_total
+  # kick out Dates after Startdate
+  RValues<-RValues[RValues$Date >=startDate,]
+  # reindex
+  rownames(RValues) <- 0:(nrow(RValues)-1)
+  RValues
+}
+getVaccinationValues <-function(firstVaccination, startDate){
+  #____________________________________________________________________
+  # Calculate timedependent num_per_day
+  #____________________________________________________________________
+  #read from csv file
+  if (firstVaccination){
+    vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.tsv", sep= "\t")[,c("date","dosen_erst_differenz_zum_vortag", "impf_quote_erst")]
+  }else{
+    vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.tsv", sep= "\t")[,c("date","dosen_zweit_differenz_zum_vortag", "impf_quote_voll")]
+  }
+  #rename columns
+  names(vaccinationValues)<-c("Date","Shots","fraction")
+  # Format date type to posixct, because everything else didn't work
+  vaccinationValues$Date<-as.POSIXct(as.Date(vaccinationValues$Date,"%Y-%m-%d"))
+  # kick out NAs
+  vaccinationValues<-na.omit(vaccinationValues)
+  # kick out Dates after Startdate
+  vaccinationValues<-vaccinationValues[vaccinationValues$Date >= startDate,]
+  # reindex
+  rownames(vaccinationValues) <- 0:(nrow(vaccinationValues)-1)
+  vaccinationValues
+}
+###### End ADDED ###############
 
 move_vaccinated_event <- function(t, x, parms){
   v_e <- parms$v_e
@@ -1013,7 +1055,7 @@ gather_compartments_overtime <- function(df, compartment, strat){
                          strat = rep(strat, final_time + 1))
 }
 
-plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_kids, df_twentyplus, 
+  plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_kids, df_twentyplus, 
                                df_elderly, this_time) {
   df_baseline <- gather_compartments_overtime(df_baseline, compartment, "no vax")
   df_all <- gather_compartments_overtime(df_all, compartment, "all")
@@ -1038,7 +1080,7 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
     theme(legend.position = "none") 
   
   if (compartment == "I") {
-    ymax <- 0.6
+    ymax <- 0.5
     p <- p + ylab("\nInfected (%)")
   } else if (compartment == "R") {
     ymax <- 60
@@ -1051,6 +1093,58 @@ plot_strat_overtime = function(compartment, df_baseline, df_all, df_adults, df_k
   p <- p + scale_y_continuous(expand = c(0,0), limit = c(0, ymax)) + 
     coord_fixed(250*4/(5*ymax))
 }
+
+plot_strat_overtimeDyn = function(compartment, df_baseline, df_all, df_adults, df_kids, df_twentyplus, 
+                               df_elderly, df_RealCases, this_time) {
+  df_baseline <- gather_compartments_overtime(df_baseline, compartment, "no vax")
+  df_all <- gather_compartments_overtime(df_all, compartment, "all")
+  df_adults <- gather_compartments_overtime(df_adults, compartment, "adults")
+  df_kids <- gather_compartments_overtime(df_kids, compartment, "kids")
+  df_twentyplus <- gather_compartments_overtime(df_twentyplus, compartment, "twentyplus")
+  df_elderly <- gather_compartments_overtime(df_elderly, compartment, "elderly")
+  xmaxDyn = as.numeric(dim(df_baseline)[1])-1
+
+  df <- rbind(df_adults, df_all, df_elderly, df_kids, df_twentyplus)
+  lab<-c("Adults 20-49", "All Ages", "Adults 60+", 
+         "Under 20","Adults 20+", "Actual Pandemic")
+  
+  #df$time = df_RealCases$Date
+  #df_baseline$time = df_RealCases$Date
+  p <- ggplot(df, aes(x = time, y = percent)) +
+    theme_minimal(base_size = 12) +
+    annotate("rect", xmin=0, xmax=this_time, ymin=0, ymax=Inf, alpha=0.5, fill= "#dddddd") +
+    geom_line(data = df_baseline, aes(x = time, y = percent, colour = strat), col = "#4F4F4F", size = 0.5, 
+              linetype = "dashed") +
+    geom_line(aes(colour = strat), size = 0.5)
+
+  if(compartment=="I"){
+    plotDF = data.frame(df_baseline$time,df_RealCases$percent)
+    names(plotDF) =c("time","percent")
+    plotDF$strat = rep("Reality",nrow(plotDF))
+    p<-p+geom_line(data = plotDF, aes(x = time, y = percent, colour = strat), col = "#FF0000", size = 0.5, 
+              linetype = "dashed") 
+  }
+  
+  p<-p + xlab("Time (days)") +
+    scale_x_continuous(expand = c(0,0), limit = c(0, xmaxDyn))+
+    scale_color_brewer(palette = "Dark2", name = "Vaccination Strategy",
+                       labels =  lab)
+  
+  if (compartment == "I") {
+    ymax <- max(plotDF$percent)*1.5
+    p <- p + ylab("\nInfected (%)")
+  } else if (compartment == "R") {
+    ymax <- 60
+    p <- p + ylab("Cumulative\nincidence (%)")
+  } else if (compartment == "D") {
+    ymax <- max(df_baseline$percent)*1.2
+    p <- p + ylab("Cumulative\nmortality (%)") 
+  }
+  
+  p <- p + scale_y_continuous(expand = c(0,0), limit = c(0, ymax))
+ #   coord_fixed(250*4/(5*ymax))
+}
+
 
 gather_compartments_byage <- function(df, compartment, age_group){
   final_time <- as.numeric(dim(df)[1])-1

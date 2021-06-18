@@ -2,54 +2,15 @@ source("run_sim.R")
 source("helper_functions.R")
 country <- "DEU"
 source("setup.R")
-
+library(roll)
 #_____________________________________________________________________
 # Calculate timedependent C
 #_____________________________________________________________________
 
 startDate =  as.POSIXct(as.Date("1.2.2021", "%d.%m.%Y"))
-getRValues<-function(startDate){
-  #read from csv file
-  RValues<-read.csv("../Nowcasting_Zahlen_csv.csv", sep = ";")[,c("Datum","Schätzer_Reproduktionszahl_R")]
-  
-  #change column names to english
-  names(RValues)<-c("Date","R")
-  # Format date type to posixct, because everything else didn't work
-  RValues$Date<-as.POSIXct(as.Date(RValues$Date,"%d.%m.%Y"))
-  # kick out NAs
-  RValues<-na.omit(RValues)
-  # kick out Dates after Startdate
-  RValues<-RValues[RValues$Date > startDate,]
-  # reindex
-  rownames(RValues) <- 0:(nrow(RValues)-1)
-  RValues
-}
-getVaccinationValues <-function(firstVaccination, startDate){
-  #____________________________________________________________________
-  # Calculate timedependent num_per_day
-  #____________________________________________________________________
-  #read from csv file
-  if (firstVaccination){
-  vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.csv", sep= "\t")[,c("date","dosen_erst_differenz_zum_vortag", "impf_quote_erst")]
-  }else{
-  vaccinationValues <- read.csv("../germany_vaccinations_timeseries_v2.csv", sep= "\t")[,c("date","dosen_zweit_differenz_zum_vortag", "impf_quote_voll")]
-  }
-  #rename columns
-  names(vaccinationValues)<-c("Date","Shots","fraction")
-  vaccinationValues$fraction <- vaccinationValues$fraction/1000.
-  # Format date type to posixct, because everything else didn't work
-  vaccinationValues$Date<-as.POSIXct(as.Date(vaccinationValues$Date,"%Y-%m-%d"))
-  # kick out NAs
-  vaccinationValues<-na.omit(vaccinationValues)
-  # kick out Dates after Startdate
-  vaccinationValues<-vaccinationValues[vaccinationValues$Date > startDate,]
-  # reindex
-  rownames(vaccinationValues) <- 0:(nrow(vaccinationValues)-1)
-  vaccinationValues
-}
 
 RValues <-getRValues(startDate)
-vaccinationValues = getVaccinationValues(TRUE,startDate)
+vaccinationValues = getVaccinationValues(firstVaccination = FALSE,startDate)
 ## Merge Data to last common date
 endDate = min(RValues[nrow(RValues),"Date"], vaccinationValues[nrow(vaccinationValues),"Date"])
 RValues<-RValues[RValues$Date <= endDate,]
@@ -71,7 +32,8 @@ dynamicNPD <-vector(mode = "list")
 for (i in 1:nrow(vaccinationValues)){
   dynamicNPD[[i]] <-vaccinationValues[i,"Shots"]/pop_total
 }
-
+TestingFactor = 1.2
+fractionInfected = RValues$Infectious[[1]]*TestingFactor    ### Original Value 0.0025
 # _____________________________________________________________________
 # FIGURE 1: Dynamics curves ####
 # _____________________________________________________________________
@@ -81,11 +43,11 @@ ptm <- proc.time()
 
 for (i in seq(0, 50, by = 1)){
   j <- i/100
-  list_all[[paste0(i)]] <- run_simDynamic(dynamicC, j, "all", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
-  list_kids[[paste0(i)]] <- run_simDynamic(dynamicC, j, "kids", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
-  list_adults[[paste0(i)]] <- run_simDynamic(dynamicC, j, "adults", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
-  list_elderly[[paste0(i)]] <- run_simDynamic(dynamicC, j, "elderly", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
-  list_twentyplus[[paste0(i)]] <- run_simDynamic(dynamicC, j, "twentyplus", dynamicNPD, v_e_type, this_v_e, vaccinated = 0.0)
+  list_all[[paste0(i)]] <- run_simDynamic(dynamicC, j, "all", dynamicNPD, v_e_type, this_v_e,fractionInfected = fractionInfected, vaccinated = 0.0)
+  list_kids[[paste0(i)]] <- run_simDynamic(dynamicC, j, "kids", dynamicNPD, v_e_type, this_v_e,fractionInfected = fractionInfected, vaccinated = 0.0)
+  list_adults[[paste0(i)]] <- run_simDynamic(dynamicC, j, "adults", dynamicNPD, v_e_type, this_v_e,fractionInfected = fractionInfected, vaccinated = 0.0)
+  list_elderly[[paste0(i)]] <- run_simDynamic(dynamicC, j, "elderly", dynamicNPD, v_e_type, this_v_e, fractionInfected = fractionInfected, vaccinated = 0.0)
+  list_twentyplus[[paste0(i)]] <- run_simDynamic(dynamicC, j, "twentyplus", dynamicNPD, v_e_type, this_v_e,fractionInfected = fractionInfected, vaccinated = 0.0)
 } 
 
 
@@ -94,23 +56,25 @@ proc.time() - ptm
 p_mort <- plot_over_vax_avail("deaths")
   p_infect <- plot_over_vax_avail("cases")
 
-t_one <- 11
-infect_10 <- plot_strat_overtime("I", list_all[[1]], list_all[[t_one]], list_adults[[t_one]], 
-                                 list_kids[[t_one]], list_twentyplus[[t_one]], list_elderly[[t_one]], 0.1/num_perday) +
+t_one <- "10"
+t_zero <-"0"
+RValues$percent = RValues$Infectious*100
+infect_10 <- plot_strat_overtimeDyn("I", list_all[[t_zero]], list_all[[t_one]], list_adults[[t_one]], 
+                                 list_kids[[t_one]], list_twentyplus[[t_one]], list_elderly[[t_one]], RValues, 0.1/num_perday) +
   onlyy_theme + 
   ggtitle("10% vaccine supply") + 
   theme(plot.title = element_text(color = "black"))
-t_two <- 41
-infect_30 <- plot_strat_overtime("I", list_all[[1]], list_all[[t_two]], list_adults[[t_two]], 
-                                 list_kids[[t_two]], list_twentyplus[[t_two]], list_elderly[[t_two]], 0.3/num_perday) + 
+t_two <- "30"
+infect_30 <- plot_strat_overtimeDyn("I", list_all[[t_zero]], list_all[[t_two]], list_adults[[t_two]], 
+                                 list_kids[[t_two]], list_twentyplus[[t_two]], list_elderly[[t_two]], RValues, 0.3/num_perday) + 
   nolabels_theme +
   ggtitle("30% vaccine supply") + 
   theme(plot.title = element_text(color = "black"))
 
-mort_10 <- plot_strat_overtime("D", list_all[[1]], list_all[[t_one]], list_adults[[t_one]], 
+mort_10 <- plot_strat_overtime("D", list_all[[t_zero]], list_all[[t_one]], list_adults[[t_one]], 
                                list_kids[[t_one]], list_twentyplus[[t_one]], list_elderly[[t_one]], 0.1/num_perday) 
 
-mort_30 <- plot_strat_overtime("D", list_all[[1]], list_all[[t_two]], list_adults[[t_two]], 
+mort_30 <- plot_strat_overtime("D", list_all[[t_zero]], list_all[[t_two]], list_adults[[t_two]], 
                                list_kids[[t_two]], list_twentyplus[[t_two]], list_elderly[[t_two]], 0.3/num_perday) + 
   onlyx_theme
 
@@ -123,3 +87,4 @@ sub_panel2 <- ggarrange(infect_10, infect_30, p_infect + onlyy_theme,
 # export as 9.5x4   
 grid.arrange(strategy_panel, sub_panel2,
              widths = c(2, 7.5))
+
